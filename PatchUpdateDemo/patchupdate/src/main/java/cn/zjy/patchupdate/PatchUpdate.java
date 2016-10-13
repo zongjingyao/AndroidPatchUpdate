@@ -164,7 +164,7 @@ public class PatchUpdate {
         return apkPath;
     }
 
-    private static native int mergePatch(String oldApk, String newApk, String patch);
+    public static native int mergePatch(String oldFilePath, String newFilePath, String patch);
 
     public interface PatchUpdateListener {
         void onSuccess(String newApk);
