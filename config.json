@@ -1,0 +1,10 @@
+{
+    "new_version": "4.0",
+    "apk_dir": "apks",
+    "app_name": "PatchUpdate",
+    "separator": "-",
+    "ext": ".apk",
+    "patch_ext": ".patch",
+    "patch_folder": "patches",
+    "base_url": "http://192.168.199.207:8888"
+}

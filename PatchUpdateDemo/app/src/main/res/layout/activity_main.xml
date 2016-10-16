@@ -1,22 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/activity_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <EditText
-        android:id="@+id/et_patch_url"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxHeight="200dp"
-        android:minHeight="40dp"
-        android:text="app--1.0--2.0--md5"/>
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/btn_download"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="Patch"/>
-</RelativeLayout>
+        <TextView
+            android:id="@+id/tv_current_version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="version:"
+            android:textSize="22sp"/>
+
+        <TextView
+            android:id="@+id/tv_channel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="channel:"
+            android:textSize="22sp"/>
+
+        <EditText
+            android:id="@+id/et_check_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:maxHeight="200dp"
+            android:minHeight="40dp"
+            android:text="http://192.168.199.207:8888"
+            android:textSize="22sp"/>
+
+        <TextView
+            android:id="@+id/tv_checked_new_version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="new version:"
+            android:textSize="25sp"/>
+
+        <TextView
+            android:id="@+id/tv_checked_channel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="channel:"
+            android:textSize="22sp"/>
+
+        <TextView
+            android:id="@+id/tv_checked_new_version_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="new version url:"
+            android:textSize="22sp"/>
+
+        <TextView
+            android:id="@+id/tv_checked_patch_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="patch url:"
+            android:textSize="22sp"/>
+
+        <Button
+            android:id="@+id/btn_check"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="20dp"
+            android:text="Check Version"/>
+
+        <Button
+            android:id="@+id/btn_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="20dp"
+            android:enabled="false"
+            android:text="Update"/>
+    </LinearLayout>
+</ScrollView>

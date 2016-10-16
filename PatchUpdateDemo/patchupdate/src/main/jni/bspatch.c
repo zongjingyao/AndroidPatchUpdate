@@ -32,14 +32,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <jni.h>
-#include "cn_zjy_patchupdate_PatchUpdate.h"
+#include "cn_zjy_patchupdate_BsPatch.h"
 
 /*
  * Class:     cn_zjy_patchupdate_PatchUpdate
  * Method:    mergePatch
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT jint JNICALL Java_cn_zjy_patchupdate_PatchUpdate_mergePatch(JNIEnv *env, jclass cls,
+JNIEXPORT jint JNICALL Java_cn_zjy_patchupdate_BsPatch_merge(JNIEnv *env, jclass cls,
 jstring oldApk, jstring newApk, jstring patch){
     int argc = 4;
     char * argv[argc];

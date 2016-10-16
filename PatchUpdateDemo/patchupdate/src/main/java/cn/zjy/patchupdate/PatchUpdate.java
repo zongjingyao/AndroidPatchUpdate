@@ -3,6 +3,8 @@ package cn.zjy.patchupdate;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Environment;
 import android.text.TextUtils;
@@ -25,50 +27,92 @@ import java.security.MessageDigest;
 public class PatchUpdate {
     private static final String TAG = "PatchUpdate";
 
-    static {
-        System.loadLibrary("bspatch");
+    public static final int NO_ERROR = 1;
+    public static final int ERROR_WRONG_ARGS = 0;
+    public static final int ERROR_DOWNLOAD_PATCH_FAILED = -1;
+    public static final int ERROR_DOWNLOAD_APK_FAILED = -2;
+    public static final int ERROR_PATCH_NAME_IS_INVALID = -3;
+    public static final int ERROR_OLD_APK_NOT_EXISTS = -4;
+    public static final int ERROR_MERGE_PATCH_FAILED = -5;
+    public static final int ERROR_CHECK_MD5_FAILED = -6;
+
+    private PatchUpdate() {
     }
 
-    public static void update(final Context context, final String patchUrl, final PatchUpdateListener listener) {
-        if (context == null || TextUtils.isEmpty(patchUrl) || listener == null) return;
-
+    public static void update(Context context, final String patchUrl, final String fullApkUrl,
+                              final String newVersion, final String fileSeparator, final PatchUpdateListener listener) {
+        final Context applicationContext = context.getApplicationContext();
         new Thread() {
             @Override
             public void run() {
-                String patchPath = downloadPatch(patchUrl);
-                if (!new File(patchPath).exists()) {
-                    listener.onFailure("download patch failed!");
-                    return;
-                }
-                String[] parts = patchPath.split("--");
-                if (parts.length < 4) {
-                    listener.onFailure("patch name is invalid!");
-                    return;
-                }
-                String newVersion = parts[2];
-                String newMd5 = parts[3];
-
-                String oldApkPath = getOldApkPath(context);
-                if (TextUtils.isEmpty(oldApkPath) || !new File(oldApkPath).exists()) {
-                    listener.onFailure("old apk not exists!");
-                    return;
-                }
-                String newApkPath = getNewApkPath(context, newVersion);
-                mergePatch(oldApkPath, newApkPath, patchPath);
-
-                if (!new File(newApkPath).exists()) {
-                    listener.onFailure("merge patch failed!");
+                int ret = updateByPatch(applicationContext, patchUrl, newVersion, fileSeparator, null);
+                Log.d(TAG, "updateByPatch: " + ret);
+                if (ret != NO_ERROR && TextUtils.isEmpty(fullApkUrl)) {
+                    if (listener != null) listener.onFailure(ret);
                     return;
                 }
 
-                String mergedApkMd5 = getMd5(newApkPath);
-                if (mergedApkMd5.equalsIgnoreCase(newMd5)) {
-                    listener.onSuccess(newApkPath);
-                } else {
-                    listener.onFailure("check md5 failed!");
-                }
+                updateByFullApk(applicationContext, fullApkUrl, newVersion, listener);
             }
         }.start();
+    }
+
+    private static int updateByPatch(Context context, String patchUrl, String newVersion,
+                                     String fileSeparator, PatchUpdateListener listener) {
+        if (context == null || TextUtils.isEmpty(patchUrl) || TextUtils.isEmpty(fileSeparator))
+            return ERROR_WRONG_ARGS;
+
+        String patchPath = downloadPatch(patchUrl);
+        if (TextUtils.isEmpty(patchPath) || !new File(patchPath).exists()) {
+            if (listener != null) listener.onFailure(ERROR_DOWNLOAD_PATCH_FAILED);
+            return ERROR_DOWNLOAD_PATCH_FAILED;
+        }
+        String patchName = new File(patchPath).getName();
+        String[] parts = patchName.split(fileSeparator);
+        if (parts.length < 5) {
+            if (listener != null) listener.onFailure(ERROR_PATCH_NAME_IS_INVALID);
+            return ERROR_PATCH_NAME_IS_INVALID;
+        }
+        if (TextUtils.isEmpty(newVersion)) newVersion = parts[2];
+        String newApkMd5 = parts[4].substring(0, parts[4].lastIndexOf("."));
+
+        String oldApkPath = getOldApkPath(context);
+        if (TextUtils.isEmpty(oldApkPath) || !new File(oldApkPath).exists()) {
+            if (listener != null) listener.onFailure(ERROR_OLD_APK_NOT_EXISTS);
+            return ERROR_OLD_APK_NOT_EXISTS;
+        }
+        String mergedApkPath = getNewApkPath(context, newVersion);
+        BsPatch.merge(oldApkPath, mergedApkPath, patchPath);
+
+        if (!new File(mergedApkPath).exists()) {
+            if (listener != null) listener.onFailure(ERROR_MERGE_PATCH_FAILED);
+            return ERROR_MERGE_PATCH_FAILED;
+        }
+
+        String mergedApkMd5 = getMd5(mergedApkPath);
+        if (mergedApkMd5.equalsIgnoreCase(newApkMd5)) {
+            if (listener != null) listener.onSuccess(mergedApkPath);
+        } else {
+            if (listener != null) listener.onFailure(ERROR_CHECK_MD5_FAILED);
+            return ERROR_CHECK_MD5_FAILED;
+        }
+        return NO_ERROR;
+    }
+
+    private static void updateByFullApk(Context context, String fullApkUrl, String newVersion,
+                                        PatchUpdateListener listener) {
+        if (context == null || TextUtils.isEmpty(fullApkUrl) || TextUtils.isEmpty(newVersion))
+            return;
+
+        String apkPath = getNewApkPath(context, newVersion);
+        File apk = new File(apkPath);
+        if (apk.exists()) apk.delete();
+
+        if (!download(fullApkUrl, apkPath) || !new File(apkPath).exists()) {
+            if (listener != null) listener.onFailure(ERROR_DOWNLOAD_APK_FAILED);
+        } else {
+            if (listener != null) listener.onSuccess(apkPath);
+        }
     }
 
     public static void install(Context context, String apkPath) {
@@ -124,24 +168,44 @@ public class PatchUpdate {
         return downloadFolder.getAbsolutePath() + File.separator + apkName;
     }
 
+    public static String getVersionName(Context context) {
+        String version = "0.0.1";
+        PackageManager pm = context.getPackageManager();
+        try {
+            PackageInfo packageInfo = pm.getPackageInfo(context.getPackageName(), 0);
+            version = packageInfo.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+//            e.printStackTrace();
+        }
+        return version;
+    }
+
     /**
      * download patch file
      *
      * @param patchUrl patch file url
-     * @return patch file name. (name--old version--new version--md5)
+     * @return patch file name. (name-old version-new version-channel-md5.patch)
      */
     private static String downloadPatch(String patchUrl) {
         File downloadFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
         if (!downloadFolder.exists()) downloadFolder.mkdirs();
 
         String patchName = patchUrl.substring(patchUrl.lastIndexOf("/") + 1);
-        File patchFile = new File(downloadFolder, patchName);
+        String patchPath = downloadFolder.getAbsolutePath() + File.separator + patchName;
+        if (download(patchUrl, patchPath)) {
+            return patchPath;
+        }
 
+        return null;
+    }
+
+    private static boolean download(String strUrl, String path) {
+        boolean ret = true;
         try {
-            URL url = new URL(patchUrl);
+            URL url = new URL(strUrl);
             URLConnection conn = url.openConnection();
-            OutputStream os = new FileOutputStream(patchFile);
             InputStream is = conn.getInputStream();
+            OutputStream os = new FileOutputStream(path);
             byte[] buffer = new byte[1024];
             int len;
             while ((len = is.read(buffer)) != -1) {
@@ -150,10 +214,9 @@ public class PatchUpdate {
             os.close();
             is.close();
         } catch (Exception e) {
-//            e.printStackTrace();
+            ret = false;
         }
-
-        return patchFile.getAbsolutePath();
+        return ret;
     }
 
     private static String getOldApkPath(Context context) {
@@ -164,12 +227,10 @@ public class PatchUpdate {
         return apkPath;
     }
 
-    public static native int mergePatch(String oldFilePath, String newFilePath, String patch);
-
     public interface PatchUpdateListener {
         void onSuccess(String newApk);
 
-        void onFailure(String error);
+        void onFailure(int error);
     }
 
 }

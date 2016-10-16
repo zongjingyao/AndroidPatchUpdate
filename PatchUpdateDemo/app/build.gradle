@@ -17,6 +17,35 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    productFlavors {
+        yingyongbao {
+            manifestPlaceholders = [CHANNEL_NAME: "yingyongbao"]
+        }
+        official {
+            manifestPlaceholders = [CHANNEL_NAME: "official"]
+        }
+        wandoujia {
+            manifestPlaceholders = [CHANNEL_NAME: "wandoujia"]
+        }
+    }
+    //修改生成的apk名字
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            def appName = 'PatchUpdate'
+            def oldFile = output.outputFile
+            def buildName
+            def apkName
+
+            variant.productFlavors.each { product ->
+                buildName = product.name
+            }
+
+            apkName = appName + '-' + defaultConfig.versionName + '-' + buildName + '.apk'
+            File folder = new File(oldFile.parent, variant.buildType.name)
+            if(!folder.exists()) folder.mkdir()
+            output.outputFile = new File(folder, apkName)
+        }
+    }
 }
 
 dependencies {
